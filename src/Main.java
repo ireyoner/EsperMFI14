@@ -122,8 +122,8 @@ public class Main {
       		+ "or (value < prev(1,value) and type='min') "
       		+ "");
      
-    // administrator.createEPL(""
-     //  		+ "create window buysell.std:groupwin(spolka) as (data Date, spolka String, signal String)");
+     administrator.createEPL(""
+       		+ "create window buysell.std:unique(spolka) as (data Date, spolka String, signal String)");
      
      EPStatement statement = administrator.createEPL(""
      		//+ "insert into buysell"
