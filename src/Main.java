@@ -7,6 +7,18 @@ import com.espertech.esper.client.EPStatement;
 
 public class Main {
     public static void main(String[] args) throws IOException {
+    	EPServiceProvider serviceProvider = EPServiceProviderManager.getDefaultProvider() ;
+		EPAdministrator administrator = serviceProvider.getEPAdministrator();
+        // Wyliczenie wartosci do wyliczania MFI14
+//      administrator.createEPL(""
+//      		+ "create window for14days.std:groupwin(spolka).win:length(14)"
+//      		+ "  (data Date"
+//      		+ "  ,spolka String"
+//      		+ "  ,obrotForsyPlus Double"
+//      		+ "  ,obrotForsyMinus Double"
+//      		+ "  ,kursDywergencji Double"
+////      		+ "  ,kursSredni Double"
+//      		+ "  )");
     	administrator.createEPL(""
           		+ "insert into for14days "
           		+ "select data as data"
