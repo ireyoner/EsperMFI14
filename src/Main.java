@@ -10,15 +10,6 @@ public class Main {
     	EPServiceProvider serviceProvider = EPServiceProviderManager.getDefaultProvider() ;
 		EPAdministrator administrator = serviceProvider.getEPAdministrator();
         // Wyliczenie wartosci do wyliczania MFI14
-//      administrator.createEPL(""
-//      		+ "create window for14days.std:groupwin(spolka).win:length(14)"
-//      		+ "  (data Date"
-//      		+ "  ,spolka String"
-//      		+ "  ,obrotForsyPlus Double"
-//      		+ "  ,obrotForsyMinus Double"
-//      		+ "  ,kursDywergencji Double"
-////      		+ "  ,kursSredni Double"
-//      		+ "  )");
       administrator.createEPL(""
       		+ "insert into for14days "
       		+ "select data as data"
@@ -32,13 +23,6 @@ public class Main {
       		+ "  from KursAkcji.std:groupwin(spolka).win:length(2)");
 
       // Wyliczenie MFI14 (dla 3 dni, zeby szukac max i min)
-//      administrator.createEPL(""
-//      		+ "create window for3days.std:groupwin(spolka).win:length(3)"
-//      		+ "  (data Date"
-//      		+ "  ,spolka String"
-//      		+ "  ,MFI_14 Double"
-//      		+ "  ,kursDywergencji Double"
-//      		+ "  )");
       administrator.createEPL(""
       		+ "insert into for3days "
       		+ "select data as data"
@@ -50,7 +34,6 @@ public class Main {
             + "       , kursZamkniecia as kursZamkniecia  "
       		+ "  from for14days.std:groupwin(spolka).win:length(14) group by spolka");
       
-
       
        administrator.createEPL(""
       		+ "insert into extremesBuffer "
@@ -78,69 +61,127 @@ public class Main {
       		+ "            else 'brak' end as wspMFI"
       		+ "  from for3days.std:groupwin(spolka).win:length(3) f3d");
       
-      administrator.createEPL("create schema ekstrema (data Date, spolka String, value Double, type String)");
-
-     // administrator.createEPL(""
-    //		+ "create window extremeMFI as ekstrema");
-      //administrator.createEPL(""
-      //		+ "create window extremePrice.std:groupwin(spolka,type).win:length(2) as ekstrema");
       //rozdzielenie na dwa okna z samymi ekstremami
      administrator.createEPL(""
-     		+ "on  extremesBuffer(wspDyw!='brak' OR wspMFI!='brak') as exBuf"
+     		+ "on extremesBuffer(wspDyw!='brak' OR wspMFI!='brak') as exBuf"
+    		 
      		+ " insert into extremeMFI "
-     		+ " select exBuf.data as data, exBuf.spolka as spolka, exBuf.MFI_14_1 as value, exBuf.wspDyw as type"
-     		+ " where exBuf.wspDyw !='brak'"
+     		+ " select exBuf.data as data"
+     		+ "      , exBuf.spolka as spolka"
+     		+ "      , exBuf.MFI_14_1 as value"
+     		+ "      , exBuf.wspDyw as type"
+     		+ "  where exBuf.wspDyw !='brak'"
+     		
      		+ " insert into extremePrice "
-     		+ " select exBuf.data as data, exBuf.spolka as spolka, cast(exBuf.kursZamkniecia_1,Double) as value, exBuf.wspDyw as type"
-     		+ " where exBuf.wspDyw !='brak'"
+     		+ " select exBuf.data as data, exBuf.spolka as spolka"
+     		+ "      , cast(exBuf.kursZamkniecia_1,Double) as value"
+     		+ "      , exBuf.wspDyw as type"
+     		+ "  where exBuf.wspDyw !='brak'"
+     		
      		+ " output all");
+
      //Tu utknąłem: 
-//     EPStatement statement = administrator.createEPL(""
-//     		+ "select eMFI.data, eMFI.spolka, eMFI.value, prev(1,eMFI.value), eMFI.type, ePrice.value, prev(1,ePrice.value), ePrice.type from "
-//     		+ " extremeMFI as eMFI"
-//     		+ " inner join"
-//     		+ " extremePrice as ePrice"
-//     		+ " on eMFI.spolka=ePrice.spolka and eMFI.data=ePrice.data");
-     
      administrator.createEPL(""
      		+ "insert into trendsMFI "
-      		+ "select spolka as spolka, data as data, "
-      		+ "case when type='max' then 'sign1' "
-      		+ "else 'sign2' end as dywTrend "
-      		+ "from extremeMFI.std:groupwin(spolka,type).win:length(2) "
-      		+ "where (value > prev(1,value) and type='min') "
-      		+ "or (value < prev(1,value) and type='max') "
-      		+ "");
+      		+ "select spolka as spolka"
+      		+ "     , data as data"
+      		+ "     , case when type='max' then 'sign1' else 'sign2' end as dywTrend "
+      		+ "  from extremeMFI.std:groupwin(spolka,type).win:length(2) "
+      		+ " where (value > prev(1,value) and type='min') "
+      		+ "    or (value < prev(1,value) and type='max') ");
      
      administrator.createEPL(""
      		+ "insert into trendsPrice "
-      		+ "select spolka as spolka, data as data, "
-      		+ "case when type='max' then 'sign1' "
-      		+ "else 'sign2' end as dywTrend "
-      		+ "from extremePrice.std:groupwin(spolka,type).win:length(2) "
-      		+ "where (value > prev(1,value) and type='max') "
-      		+ "or (value < prev(1,value) and type='min') "
-      		+ "");
+      		+ "select spolka as spolka"
+      		+ "     , data as data"
+      		+ "     , case when type='max' then 'sign1' else 'sign2' end as dywTrend "
+      		+ "  from extremePrice.std:groupwin(spolka,type).win:length(2) "
+      		+ " where (value > prev(1,value) and type='max') "
+      		+ "    or (value < prev(1,value) and type='min') ");
      
      administrator.createEPL(""
-       		+ "create window buysell.std:unique(spolka) as (data Date, spolka String, signal String)");
+      		+ "insert into MFISignal "
+      		+ "select tMFI.spolka as spolka"
+      		+ "     , tMFI.data as data"
+      		+ "     , case when tMFI.dywTrend='sign1' then '-' else '+' end as signal "
+      		+ " from trendsMFI.std:unique(spolka) as tMFI"
+      		+ "      inner join"
+      		+ "      trendsPrice.std:unique(spolka) as tPrice"
+     		+ "   on tMFI.spolka=tPrice.spolka "
+     		+ "  and tMFI.data=tPrice.data "
+     		+ "  and tMFI.dywTrend=tPrice.dywTrend");
+
+//     EPStatement statement = administrator.createEPL(""
+//       		+ "select * from MFISignal");
+
+     administrator.createEPL(""
+       		+ "insert into gameSource "
+       		+ "select signal.signal as MFISignal"
+       		+ "     , ka.kursZamkniecia as kursWymiany"
+       		+ "     , ka.data as data"
+       		+ "     , ka.spolka as spolka"
+       		+ "  from MFISignal.win:length(1) signal"
+       		+ "  inner join "
+       		+ "       KursAkcji.win:length(1) ka"
+       		+ "    on signal.spolka = ka.spolka "
+       		+ "   and signal.data = ka.data");
+
+     administrator.createEPL(""
+    	        + "create window "
+    	        + "  stackGame.std:firstunique(spolka) "
+    	        + "    (spolka String"
+    	        + "    ,forsa Double"
+    	        + "    ,akcje Double"
+    	        + "    ,data Date"
+    	        + "    )");
      
-     EPStatement statement = administrator.createEPL(""
-     		//+ "insert into buysell"
-     		+ "select tMFI.spolka as spolka, tMFI.data as data, "
-     		+ "case when tMFI.dywTrend='sign1' then '-' "
-     		+ "else '+' end as signal "
-     		+ " from"
-     		+ " trendsMFI.std:unique(spolka) as tMFI"
-     		+ " inner join"
-     		+ " trendsPrice.std:unique(spolka) as tPrice"
-    		+ " on tMFI.spolka=tPrice.spolka and tMFI.data=tPrice.data and tMFI.dywTrend=tPrice.dywTrend");
+     administrator.createEPL(""
+   	        + " insert into stackGame "
+   	        + " select spolka as spolka"
+   	        + "      , 1000d as forsa"
+   	        + "      , 0d as akcje"
+   	        + "      , data as data"
+   	        + "   from KursAkcji");
+
+   
+   administrator.createEPL(""
+  	        + "on gameSource as GS "
+  	        + "  merge stackGame as sg "
+  	        + "    where GS.spolka = sg.spolka "
+  	        + "      when matched and GS.MFISignal = '+' "
+  	        + "      then update set "
+  	        + "        sg.data = GS.data,"
+  	        + "        sg.akcje = sg.akcje + cast(sg.forsa / GS.kursWymiany, int),"
+  	        + "        sg.forsa = sg.forsa - cast(sg.forsa / GS.kursWymiany, int) * GS.kursWymiany"
+  	        + "      when matched and GS.MFISignal = '-' "
+  	        + "      then update set "
+  	        + "        sg.data = GS.data,"
+  	        + "        sg.forsa = sg.forsa + sg.akcje * GS.kursWymiany,"
+  	        + "        sg.akcje = 0d"
+  	        );
+
+   EPStatement statement = administrator.createEPL(""
+	+ "select sg.spolka as spoka"
+	+ "     , sg.akcje as akcje"
+	+ "     , sg.forsa as forsa"
+//	+ "     , ka.data as data"
+	+ "     , ka.kursZamkniecia as kursPrzeliczen"
+	+ "     , sg.forsa+sg.akcje*ka.kursZamkniecia as wartosc"
+	+ "  from stackGame sg"
+	+ "  inner join "
+	+ "       KursAkcji( data.getYear() = 2012 "
+	+ "              and data.getMonth() = 2 "
+	+ "              and data.getDate() = 27"
+	+ "                ) as ka unidirectional"
+	+ "    on ka.spolka = sg.spolka"
+	+ "   and ka.data = sg.data"
+	+ "");
 
       ProstyListener listener = new ProstyListener();
       statement.addListener(listener);
 
-        InputStream inputStream = new InputStream();
-        inputStream.generuj(serviceProvider);
+      InputStream inputStream = new InputStream();
+      inputStream.generuj(serviceProvider);
     }
 
 }
