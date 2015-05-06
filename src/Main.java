@@ -9,7 +9,8 @@ public class Main {
     public static void main(String[] args) throws IOException {
     	EPServiceProvider serviceProvider = EPServiceProviderManager.getDefaultProvider() ;
 		EPAdministrator administrator = serviceProvider.getEPAdministrator();
-        // Wyliczenie wartosci do wyliczania MFI14
+        
+		// Wyliczenie wartosci do wyliczania MFI14
       administrator.createEPL(""
       		+ "insert into for14days "
       		+ "select data as data"
@@ -18,7 +19,6 @@ public class Main {
       		+ "            then obrot * (wartoscMax + wartoscMin + kursZamkniecia) / 3 else 0d end as obrotForsyPlus"
       		+ "     , case when (wartoscMax + wartoscMin + kursZamkniecia) < (prev(1, wartoscMax) + prev(1, wartoscMin) + prev(1, kursZamkniecia))"
       		+ "            then obrot * (wartoscMax + wartoscMin + kursZamkniecia) / 3 else 0d end as obrotForsyMinus"
-//      		+ "     , (wartoscMax + wartoscMin + kursZamkniecia) / 3 as kursDywergencji "
       		+ "     , kursZamkniecia as kursZamkniecia"
       		+ "  from KursAkcji.std:groupwin(spolka).win:length(2)");
 
@@ -34,17 +34,12 @@ public class Main {
             + "       , kursZamkniecia as kursZamkniecia  "
       		+ "  from for14days.std:groupwin(spolka).win:length(14) group by spolka");
       
-      
        administrator.createEPL(""
       		+ "insert into extremesBuffer "
       		+ "select f3d.data as data"
       		+ "     , f3d.spolka as spolka"
-//      		+ "     , f3d.MFI_14 as MFI_14_0"
       		+ "     , prev(1, f3d.MFI_14) as MFI_14_1"
-//      		+ "     , prev(2, f3d.MFI_14) as MFI_14_2"
-//      		+ "     , f3d.kursZamkniecia as kursZamkniecia_0"
       		+ "     , prev(1, f3d.kursZamkniecia) as kursZamkniecia_1"
-//      		+ "     , prev(2, f3d.kursZamkniecia) as kursZamkniecia_2"
       		+ "     , case when prev(2, f3d.kursZamkniecia) > prev(1, f3d.kursZamkniecia) "
       		+ "             and prev(1, f3d.kursZamkniecia) < f3d.kursZamkniecia "
       		+ "            then 'min' "
@@ -80,7 +75,6 @@ public class Main {
      		
      		+ " output all");
 
-     //Tu utknąłem: 
      administrator.createEPL(""
      		+ "insert into trendsMFI "
       		+ "select spolka as spolka"
@@ -108,7 +102,6 @@ public class Main {
       		+ "      inner join"
       		+ "      trendsPrice.std:unique(spolka) as tPrice"
      		+ "   on tMFI.spolka=tPrice.spolka "
-     		+ "  and tMFI.data=tPrice.data "
      		+ "  and tMFI.dywTrend=tPrice.dywTrend");
 
 //     EPStatement statement = administrator.createEPL(""
@@ -164,7 +157,6 @@ public class Main {
 	+ "select sg.spolka as spoka"
 	+ "     , sg.akcje as akcje"
 	+ "     , sg.forsa as forsa"
-//	+ "     , ka.data as data"
 	+ "     , ka.kursZamkniecia as kursPrzeliczen"
 	+ "     , sg.forsa+sg.akcje*ka.kursZamkniecia as wartosc"
 	+ "  from stackGame sg"
